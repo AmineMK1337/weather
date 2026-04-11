@@ -2,8 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
+RUN npm install --frozen-lockfile 2>/dev/null || npm install
 
 COPY . .
 

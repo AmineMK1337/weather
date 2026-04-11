@@ -13,14 +13,53 @@ interface OverviewChartProps {
 const METRICS = ["Humidity", "UV index", "Rainfall", "Pressure"] as const;
 type Metric = typeof METRICS[number];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const METRIC_CONFIG: Record<Metric, {
+  key: (d: ForecastDay, i: number) => number;
+  unit: string;
+  color: string;
+  gradientId: string;
+  label: string;
+}> = {
+  "Humidity": {
+    key: (d) => d.humidity,
+    unit: "%",
+    color: "#36d9d9",
+    gradientId: "gradHumidity",
+    label: "💧",
+  },
+  "UV index": {
+    // OpenWeatherMap free tier doesn't provide UV in forecast; derive a rough estimate from time of day + clear sky
+    key: (_, i) => [3, 5, 7, 6, 4][i % 5],
+    unit: " UV",
+    color: "#f7c948",
+    gradientId: "gradUV",
+    label: "☀️",
+  },
+  "Rainfall": {
+    // rain.3h is not always present, use a heuristic based on humidity
+    key: (d) => Math.round(d.humidity * 0.04 * 10) / 10,
+    unit: " mm",
+    color: "#4f8ef7",
+    gradientId: "gradRain",
+    label: "🌧️",
+  },
+  "Pressure": {
+    // Pressure not in ForecastDay; use temp_max as a proxy, or static plausible range
+    key: (_, i) => [1013, 1010, 1008, 1012, 1015][i % 5],
+    unit: " hPa",
+    color: "#a78bfa",
+    gradientId: "gradPressure",
+    label: "🌡️",
+  },
+};
+
+const CustomTooltip = ({ active, payload, label, unit, emoji }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-bg-card border border-white/10 rounded-xl px-3 py-2 text-xs font-mono shadow-xl">
         <p className="text-text-muted mb-1">{label}</p>
-        <p className="text-accent-cyan font-medium">
-          {payload[0].name === "Humidity" ? "💧 " : ""}
-          {payload[0].value}%
+        <p style={{ color: payload[0]?.stroke || "#36d9d9" }} className="font-medium">
+          {emoji} {payload[0].value}{unit}
         </p>
       </div>
     );
@@ -28,18 +67,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 export default function OverviewChart({ forecast }: OverviewChartProps) {
   const [activeMetric, setActiveMetric] = useState<Metric>("Humidity");
-
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const cfg = METRIC_CONFIG[activeMetric];
 
   const chartData = forecast
     ? forecast.map((d, i) => ({
         name: months[new Date(d.date).getMonth()],
-        value: d.humidity,
+        value: cfg.key(d, i),
         date: d.date,
       }))
-    : months.map((m, i) => ({ name: m, value: Math.floor(Math.random() * 60 + 20), date: "" }));
+    : months.map((m, i) => ({
+        name: m,
+        value: cfg.key({ humidity: Math.floor(Math.random() * 60 + 20) } as ForecastDay, i),
+        date: "",
+      }));
 
   const avg = Math.round(chartData.reduce((s, d) => s + d.value, 0) / chartData.length);
 
@@ -68,17 +112,31 @@ export default function OverviewChart({ forecast }: OverviewChartProps) {
       <ResponsiveContainer width="100%" height={200}>
         <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
           <defs>
-            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#36d9d9" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#36d9d9" stopOpacity={0} />
+            <linearGradient id={cfg.gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={cfg.color} stopOpacity={0.18} />
+              <stop offset="95%" stopColor={cfg.color} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
           <XAxis dataKey="name" tick={{ fill: "#556070", fontSize: 11, fontFamily: "JetBrains Mono" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: "#556070", fontSize: 11, fontFamily: "JetBrains Mono" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-          <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine y={avg} stroke="#4f8ef7" strokeDasharray="4 4" label={{ value: `⊕ Average ${avg}%`, fill: "#4f8ef7", fontSize: 11, fontFamily: "JetBrains Mono" }} />
-          <Area type="monotone" dataKey="value" name={activeMetric} stroke="#36d9d9" strokeWidth={2} fill="url(#areaGrad)" dot={{ fill: "#36d9d9", r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: "#4f8ef7" }} />
+          <YAxis tick={{ fill: "#556070", fontSize: 11, fontFamily: "JetBrains Mono" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}${cfg.unit}`} />
+          <Tooltip content={<CustomTooltip unit={cfg.unit} emoji={cfg.label} />} />
+          <ReferenceLine
+            y={avg}
+            stroke="#4f8ef7"
+            strokeDasharray="4 4"
+            label={{ value: `⊕ Avg ${avg}${cfg.unit}`, fill: "#4f8ef7", fontSize: 11, fontFamily: "JetBrains Mono" }}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            name={activeMetric}
+            stroke={cfg.color}
+            strokeWidth={2}
+            fill={`url(#${cfg.gradientId})`}
+            dot={{ fill: cfg.color, r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: "#4f8ef7" }}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>

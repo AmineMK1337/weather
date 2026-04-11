@@ -35,11 +35,15 @@ export interface WeatherRecord {
   id: number;
   location: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
   temperature: number;
+  feels_like?: number;
   humidity: number;
   wind_speed: number;
   weather_condition: string;
-  ai_summary: string;
+  weather_icon?: string;
+  ai_summary?: string;
   queried_at: string;
 }
 

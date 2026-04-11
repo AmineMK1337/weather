@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { CurrentWeather } from "../services/api";
 import { Maximize2 } from "lucide-react";
 
@@ -11,78 +11,124 @@ declare global {
   interface Window { google: any; }
 }
 
+const DARK_STYLES = [
+  { elementType: "geometry", stylers: [{ color: "#1e2330" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8892a4" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0f1117" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f1117" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#252b3b" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+];
+
 export default function MapPanel({ weather }: MapPanelProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const infoWindowRef = useRef<any>(null);
 
+  const createOrUpdateMarker = useCallback((lat: number, lng: number, w: CurrentWeather) => {
+    if (!mapInstance.current) return;
+    const pos = { lat, lng };
+
+    if (markerRef.current) {
+      markerRef.current.setPosition(pos);
+      mapInstance.current.panTo(pos);
+    } else {
+      markerRef.current = new window.google.maps.Marker({
+        position: pos,
+        map: mapInstance.current,
+        title: `${w.location}: ${Math.round(w.temperature)}°C`,
+        animation: window.google.maps.Animation.DROP,
+      });
+    }
+
+    if (infoWindowRef.current) infoWindowRef.current.close();
+    infoWindowRef.current = new window.google.maps.InfoWindow({
+      content: `<div style="background:#1e2330;color:#e8eaf0;padding:10px 14px;border-radius:10px;font-size:12px;font-family:'DM Sans',sans-serif;min-width:140px">
+        <strong style="font-size:13px">${w.location}, ${w.country}</strong><br/>
+        <span style="color:#36d9d9;font-size:16px;font-weight:600">${Math.round(w.temperature)}°C</span>
+        <span style="color:#8892a4;margin-left:6px;text-transform:capitalize">${w.weather_condition}</span><br/>
+        <span style="color:#8892a4">💧 ${w.humidity}% · 💨 ${Math.round(w.wind_speed * 3.6)} km/h</span>
+      </div>`,
+    });
+    infoWindowRef.current.open(mapInstance.current, markerRef.current);
+    mapInstance.current.panTo(pos);
+  }, []);
+
+  // Initialize map once
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey || !mapRef.current) return;
+    if (!mapRef.current) return;
 
-    const initMap = () => {
-      const lat = weather?.latitude || 52.52;
-      const lng = weather?.longitude || 13.405;
-
+    const initMap = (lat = 48.8566, lng = 2.3522) => {
+      if (mapInstance.current) return; // already initialized
       mapInstance.current = new window.google.maps.Map(mapRef.current, {
         center: { lat, lng },
         zoom: 6,
         mapTypeId: "terrain",
-        styles: [
-          { elementType: "geometry", stylers: [{ color: "#1e2330" }] },
-          { elementType: "labels.text.fill", stylers: [{ color: "#8892a4" }] },
-          { elementType: "labels.text.stroke", stylers: [{ color: "#0f1117" }] },
-          { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f1117" }] },
-          { featureType: "road", elementType: "geometry", stylers: [{ color: "#252b3b" }] },
-        ],
+        styles: DARK_STYLES,
         disableDefaultUI: true,
         zoomControl: true,
+        gestureHandling: "cooperative",
       });
     };
 
-    if (window.google) {
+    if (!apiKey) {
+      // No API key — show placeholder, skip loading
+      return;
+    }
+
+    if (window.google?.maps) {
       initMap();
     } else {
+      // Avoid duplicate script injection
+      if (document.getElementById("google-maps-script")) {
+        const wait = setInterval(() => {
+          if (window.google?.maps) { clearInterval(wait); initMap(); }
+        }, 100);
+        return () => clearInterval(wait);
+      }
       const script = document.createElement("script");
+      script.id = "google-maps-script";
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
       script.async = true;
-      script.onload = initMap;
+      script.defer = true;
+      script.onload = () => initMap();
       document.head.appendChild(script);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Update marker when weather changes
   useEffect(() => {
-    if (!mapInstance.current || !weather) return;
-    const pos = { lat: weather.latitude, lng: weather.longitude };
-    mapInstance.current.panTo(pos);
-    if (markerRef.current) markerRef.current.setPosition(pos);
-    else {
-      markerRef.current = new window.google.maps.Marker({
-        position: pos,
-        map: mapInstance.current,
-        title: `${weather.location}: ${Math.round(weather.temperature)}°C`,
-      });
+    if (!weather || !mapInstance.current) return;
+    createOrUpdateMarker(weather.latitude, weather.longitude, weather);
+  }, [weather, createOrUpdateMarker]);
 
-      new window.google.maps.InfoWindow({
-        content: `<div style="background:#1e2330;color:#e8eaf0;padding:8px 12px;border-radius:8px;font-size:12px">
-          <strong>${weather.location}, ${weather.country}</strong><br/>
-          ${Math.round(weather.temperature)}° ${weather.weather_condition}<br/>
-          ${weather.humidity}% humidity
-        </div>`,
-      }).open(mapInstance.current, markerRef.current);
-    }
-  }, [weather]);
+  const hasApiKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   return (
-    <div className="card overflow-hidden relative">
-      <div ref={mapRef} className="w-full h-full min-h-[180px]" style={{ background: "#1e2330" }}>
-        {!weather && (
-          <div className="absolute inset-0 flex items-center justify-center text-text-muted text-xs">
-            🗺️ Map will appear after search
-          </div>
-        )}
-      </div>
-      <button className="absolute top-3 right-3 w-7 h-7 rounded-lg bg-bg-card/80 border border-white/10 flex items-center justify-center text-text-muted hover:text-text-primary transition-all backdrop-blur-sm">
+    <div className="card overflow-hidden relative" style={{ minHeight: 200 }}>
+      {hasApiKey ? (
+        <div ref={mapRef} className="w-full" style={{ height: 200, background: "#1e2330" }}>
+          {!weather && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted text-xs gap-2">
+              <span className="text-3xl">🗺️</span>
+              <span>Map appears after search</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="w-full flex flex-col items-center justify-center text-text-muted text-xs gap-2 py-10">
+          <span className="text-3xl">🗺️</span>
+          <span className="font-sans">Add <code className="text-accent-blue">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code></span>
+          <span>to enable the interactive map</span>
+        </div>
+      )}
+      <button
+        title="Fullscreen"
+        className="absolute top-3 right-3 w-7 h-7 rounded-lg bg-bg-card/80 border border-white/10 flex items-center justify-center text-text-muted hover:text-text-primary transition-all backdrop-blur-sm"
+      >
         <Maximize2 size={13} />
       </button>
     </div>

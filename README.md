@@ -1,6 +1,6 @@
 # 🌦️ WeatherDash — Full-Stack Weather Application
 
-A production-ready, full-stack weather dashboard inspired by a sleek dark-themed UI. Built with **Next.js**, **FastAPI**, **PostgreSQL**, and powered by **OpenWeatherMap**, **Google Maps**, **YouTube Data API**, and **Claude AI** for intelligent weather summaries.
+A production-ready, full-stack weather dashboard inspired by a sleek dark-themed UI. Built with **Next.js**, **FastAPI**, **PostgreSQL**, and powered by **OpenWeatherMap**, **Google Maps**, **YouTube Data API**, and **Google Gemini** for intelligent weather summaries.
 
 ---
 
@@ -25,7 +25,7 @@ A production-ready, full-stack weather dashboard inspired by a sleek dark-themed
 - Auto-saves every search to the database
 - **Export** records as JSON, CSV, PDF, or Markdown
 - Swagger/OpenAPI docs at `/docs`
-- Claude AI integration for intelligent summaries
+- **Google Gemini** integration for intelligent summaries
 
 ---
 
@@ -92,7 +92,7 @@ cp .env.example .env
 | Variable | Description |
 |---|---|
 | `OPENWEATHER_API_KEY` | [OpenWeatherMap](https://openweathermap.org/api) API key (free tier) |
-| `ANTHROPIC_API_KEY` | [Anthropic](https://console.anthropic.com) API key for AI summaries |
+| `GOOGLE_API_KEY` | [Google AI Studio](https://aistudio.google.com) API key for Gemini summaries |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | [Google Maps JavaScript API](https://console.cloud.google.com) key |
 | `NEXT_PUBLIC_YOUTUBE_API_KEY` | [YouTube Data API v3](https://console.cloud.google.com) key |
@@ -191,12 +191,12 @@ curl "http://localhost:8000/weather/current?location=Paris&units=metric"
 
 ## 🤖 AI Integration
 
-The app uses **Claude (claude-sonnet-4-20250514)** via the Anthropic API to generate smart weather summaries that include:
+The app uses **Google Gemini (gemini-2.0-flash)** via the Google AI SDK to generate smart weather summaries that include:
 - Current condition description
 - Clothing recommendations
 - Activity suggestions
 
-If the Anthropic API key is not set, the app gracefully falls back to a basic template summary.
+If the Google API key is not set, the app gracefully falls back to a basic template summary.
 
 ---
 
@@ -228,7 +228,7 @@ If the Anthropic API key is not set, the app gracefully falls back to a basic te
 | Database | PostgreSQL 15 |
 | ORM | SQLAlchemy 2.0 |
 | Validation | Pydantic v2 |
-| AI Summaries | Anthropic Claude API |
+| AI Summaries | Google Gemini API |
 | Weather Data | OpenWeatherMap API |
 | Maps | Google Maps JavaScript API |
 | Videos | YouTube Data API v3 |

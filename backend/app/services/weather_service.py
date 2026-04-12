@@ -1,7 +1,7 @@
 import os
 import httpx
 from typing import Optional
-import anthropic
+from google import genai
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 BASE_URL = "https://api.openweathermap.org/data/2.5"
@@ -74,9 +74,9 @@ async def get_forecast(location: str, days: int = 5, units: str = "metric") -> d
 
 
 async def generate_ai_summary(weather_data: dict) -> str:
-    """Generate AI-powered weather summary and recommendations using Claude."""
+    """Generate AI-powered weather summary and recommendations using Gemini."""
     try:
-        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         prompt = f"""
         Given this weather data for {weather_data['location']}, {weather_data['country']}:
         - Temperature: {weather_data['temperature']}°C (feels like {weather_data['feels_like']}°C)
@@ -88,11 +88,11 @@ async def generate_ai_summary(weather_data: dict) -> str:
         Be friendly and helpful. Example style: "Expect mild temperatures with partly cloudy skies today.
         A light jacket is recommended, and it's a great day for outdoor activities."
         """
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=150,
-            messages=[{"role": "user", "content": prompt}],
+        response = await client.aio.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
         )
-        return message.content[0].text
-    except Exception:
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini Error: {e}")
         return f"Currently {weather_data['weather_condition']} in {weather_data['location']} with a temperature of {weather_data['temperature']}°C."

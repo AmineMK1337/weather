@@ -99,6 +99,8 @@ async def get_forecast(location: str, days: int = 5, units: str = "metric") -> d
         daily[date]["hourly"].append({
             "time": item["dt_txt"].split(" ")[1][:5],
             "temp": item["main"]["temp"],
+            "humidity": item["main"]["humidity"],
+            "rain_mm": item.get("rain", {}).get("3h", 0),
             "condition": item["weather"][0]["description"],
             "icon": item["weather"][0]["icon"],
         })

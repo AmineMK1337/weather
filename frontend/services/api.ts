@@ -28,7 +28,14 @@ export interface ForecastDay {
   humidity: number;
   condition: string;
   icon: string;
-  hourly: { time: string; temp: number; condition: string; icon: string }[];
+  hourly: {
+    time: string;
+    temp: number;
+    humidity: number;
+    rain_mm: number;
+    condition: string;
+    icon: string;
+  }[];
 }
 
 export interface WeatherRecord {

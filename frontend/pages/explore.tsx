@@ -3,11 +3,13 @@ import React, { useState } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import Head from "next/head";
 import MapPanel from "../components/MapPanel";
+import HourlyHumidityRainOverview from "../components/HourlyHumidityRainOverview";
 import { Compass, Search } from "lucide-react";
-import { weatherApi, CurrentWeather } from "../services/api";
+import { weatherApi, CurrentWeather, ForecastDay } from "../services/api";
 
 export default function ExplorePage() {
   const [weather, setWeather] = useState<CurrentWeather | null>(null);
+  const [forecast, setForecast] = useState<ForecastDay[] | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -16,8 +18,12 @@ export default function ExplorePage() {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const res = await weatherApi.getCurrent(query);
-      setWeather(res.data);
+      const [currentRes, forecastRes] = await Promise.all([
+        weatherApi.getCurrent(query),
+        weatherApi.getForecast(query, 1),
+      ]);
+      setWeather(currentRes.data);
+      setForecast(forecastRes.data.forecast);
     } catch {
       // ignore
     } finally {
@@ -30,7 +36,7 @@ export default function ExplorePage() {
       <Head>
         <title>Explore - Weather App</title>
       </Head>
-      <div className="flex-1 flex flex-col p-8 overflow-hidden gap-6">
+      <div className="flex-1 flex flex-col p-8 overflow-y-auto gap-6">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl text-text-primary flex items-center gap-3">
@@ -57,18 +63,18 @@ export default function ExplorePage() {
           </form>
         </header>
 
-        <div className="flex-1 rounded-3xl border border-white/5 overflow-hidden shadow-2xl bg-bg-card relative">
-            <div className="absolute inset-0 w-full h-full [&>div]:w-full [&>div]:h-full [&>div]:max-h-none">
-              <MapPanel weather={weather} />
+        <div className="relative">
+          <MapPanel key={weather?.location || "explore-map"} weather={weather} mapHeight={640} />
+          {!weather && (
+            <div className="absolute bottom-6 left-6 pointer-events-none z-10 p-4 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 max-w-sm">
+              <p className="text-sm text-white/90">
+                <strong className="text-accent-cyan">Tip:</strong> Search for a specific city in the top right to pinpoint weather patterns and view local temperature.
+              </p>
             </div>
-            {!weather && (
-              <div className="absolute bottom-6 left-6 pointer-events-none z-10 p-4 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 max-w-sm">
-                <p className="text-sm text-white/90">
-                  <strong className="text-accent-cyan">Tip:</strong> Search for a specific city in the top right to pinpoint weather patterns and view local temperature.
-                </p>
-              </div>
-            )}
+          )}
         </div>
+
+        <HourlyHumidityRainOverview forecast={forecast} />
       </div>
     </SidebarLayout>
   );

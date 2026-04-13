@@ -5,6 +5,7 @@ import { Maximize2 } from "lucide-react";
 
 interface MapPanelProps {
   weather: CurrentWeather | null;
+  mapHeight?: number;
 }
 
 declare global {
@@ -21,7 +22,7 @@ const DARK_STYLES = [
   { featureType: "transit", stylers: [{ visibility: "off" }] },
 ];
 
-function MapPanel({ weather }: MapPanelProps) {
+function MapPanel({ weather, mapHeight = 200 }: MapPanelProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -133,10 +134,10 @@ function MapPanel({ weather }: MapPanelProps) {
   const hasApiKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   return (
-    <div className="card overflow-hidden relative" style={{ minHeight: 200 }}>
+    <div className="card overflow-hidden relative" style={{ minHeight: mapHeight }}>
       {hasApiKey ? (
         <>
-          <div ref={mapRef} className="w-full" style={{ height: 200, background: "#1e2330" }} />
+          <div ref={mapRef} className="w-full" style={{ height: mapHeight, background: "#1e2330" }} />
           {!weather && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted text-xs gap-2 pointer-events-none">
               <span className="text-3xl">🗺️</span>

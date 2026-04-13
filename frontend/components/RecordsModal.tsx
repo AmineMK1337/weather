@@ -13,29 +13,47 @@ export default function RecordsModal({ isOpen, onClose }: RecordsModalProps) {
   const [records, setRecords] = useState<WeatherRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchRecords = async () => {
+  const fetchRecords = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const { data } = await weatherApi.getRecords();
-      setRecords(data);
-    } catch {
+      if (!signal?.aborted) {
+        setRecords(data);
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        // Silent fail
+      }
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => { if (isOpen) fetchRecords(); }, [isOpen]);
+  useEffect(() => { 
+    if (!isOpen) return;
+    const abortController = new AbortController();
+    fetchRecords(abortController.signal);
+    return () => abortController.abort();
+  }, [isOpen]);
 
   const handleDelete = async (id: number) => {
     await weatherApi.deleteRecord(id);
     setRecords((prev) => prev.filter((r) => r.id !== id));
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div 
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity pointer-events-none ${
+        isOpen ? "opacity-100 pointer-events-auto" : "opacity-0"
+      }`}
+      onClick={onClose}
+    >
+      <div 
+        className="bg-bg-secondary border border-white/10 rounded-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col shadow-2xl" 
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-white/8">
           <div className="flex items-center gap-2">

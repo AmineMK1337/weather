@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { memo } from "react";
 import { ForecastDay } from "../services/api";
 import { getWeatherIcon, formatTemp } from "../services/weatherUtils";
 import { format, parseISO } from "date-fns";
@@ -11,7 +12,7 @@ interface ForecastPanelProps {
   loading: boolean;
 }
 
-export default function ForecastPanel({ forecast, unit, loading }: ForecastPanelProps) {
+function ForecastPanel({ forecast, unit, loading }: ForecastPanelProps) {
   const [days, setDays] = useState<3 | 5>(3);
 
   const items = forecast ? forecast.slice(0, days) : [];
@@ -75,3 +76,5 @@ export default function ForecastPanel({ forecast, unit, loading }: ForecastPanel
     </div>
   );
 }
+
+export default memo(ForecastPanel);

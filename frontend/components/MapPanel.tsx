@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, memo } from "react";
 import { CurrentWeather } from "../services/api";
 import { Maximize2 } from "lucide-react";
 
@@ -21,7 +21,7 @@ const DARK_STYLES = [
   { featureType: "transit", stylers: [{ visibility: "off" }] },
 ];
 
-export default function MapPanel({ weather }: MapPanelProps) {
+function MapPanel({ weather }: MapPanelProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -79,24 +79,49 @@ export default function MapPanel({ weather }: MapPanelProps) {
       return;
     }
 
+    let waitInterval: NodeJS.Timeout | null = null;
+
     if (window.google?.maps) {
       initMap();
     } else {
       // Avoid duplicate script injection
       if (document.getElementById("google-maps-script")) {
-        const wait = setInterval(() => {
-          if (window.google?.maps) { clearInterval(wait); initMap(); }
+        waitInterval = setInterval(() => {
+          if (window.google?.maps) { 
+            if (waitInterval) clearInterval(waitInterval);
+            initMap(); 
+          }
         }, 100);
-        return () => clearInterval(wait);
+      } else {
+        const script = document.createElement("script");
+        script.id = "google-maps-script";
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => initMap();
+        document.head.appendChild(script);
       }
-      const script = document.createElement("script");
-      script.id = "google-maps-script";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => initMap();
-      document.head.appendChild(script);
     }
+
+    // Cleanup
+    return () => {
+      if (waitInterval) clearInterval(waitInterval);
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
+        markerRef.current = null;
+      }
+      if (infoWindowRef.current) {
+        infoWindowRef.current.close();
+        infoWindowRef.current = null;
+      }
+      if (window.google?.maps?.event && mapInstance.current) {
+        window.google.maps.event.clearInstanceListeners(mapInstance.current);
+      }
+      if (mapRef.current) {
+        mapRef.current.innerHTML = "";
+      }
+      mapInstance.current = null;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update marker when weather changes
@@ -110,14 +135,15 @@ export default function MapPanel({ weather }: MapPanelProps) {
   return (
     <div className="card overflow-hidden relative" style={{ minHeight: 200 }}>
       {hasApiKey ? (
-        <div ref={mapRef} className="w-full" style={{ height: 200, background: "#1e2330" }}>
+        <>
+          <div ref={mapRef} className="w-full" style={{ height: 200, background: "#1e2330" }} />
           {!weather && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted text-xs gap-2">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted text-xs gap-2 pointer-events-none">
               <span className="text-3xl">🗺️</span>
               <span>Map appears after search</span>
             </div>
           )}
-        </div>
+        </>
       ) : (
         <div className="w-full flex flex-col items-center justify-center text-text-muted text-xs gap-2 py-10">
           <span className="text-3xl">🗺️</span>
@@ -134,3 +160,5 @@ export default function MapPanel({ weather }: MapPanelProps) {
     </div>
   );
 }
+
+export default memo(MapPanel);

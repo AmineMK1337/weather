@@ -26,11 +26,11 @@ export default function Sidebar() {
 
       {/* Nav Icons */}
       <nav className="flex flex-col gap-2 flex-1">
-        {navItems.map(({ icon: Icon, path }, i) => {
+        {navItems.map(({ icon: Icon, path }) => {
           const active = router.pathname === path;
           return (
             <Link
-              key={i}
+              key={path}
               href={path}
               className={clsx(
                 "w-10 h-10 rounded-xl flex items-center justify-center transition-all",

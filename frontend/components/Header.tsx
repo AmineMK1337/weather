@@ -40,6 +40,7 @@ export default function Header({ onSearch, unit, onUnitToggle, loading }: Header
         <form onSubmit={handleSubmit} className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
           <input
+            suppressHydrationWarning
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -65,9 +66,11 @@ export default function Header({ onSearch, unit, onUnitToggle, loading }: Header
           <span className={unit === "F" ? "text-accent-blue font-medium" : "text-text-muted"}>F°</span>
         </button>
 
-        {loading && (
-          <div className="w-5 h-5 border-2 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin" />
-        )}
+        <div className={`w-5 h-5 rounded-full animate-spin transition-all ${
+          loading 
+            ? "opacity-100 border-2 border-accent-blue/30 border-t-accent-blue" 
+            : "opacity-0"
+        }`} />
       </div>
     </header>
   );

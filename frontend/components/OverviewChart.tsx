@@ -68,8 +68,9 @@ const CustomTooltip = ({ active, payload, label, unit, emoji }: any) => {
 };
 
 const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const FALLBACK_HUMIDITY = [28, 34, 41, 37, 44, 48, 42, 38, 33, 36, 40, 35];
 
-export default function OverviewChart({ forecast }: OverviewChartProps) {
+function OverviewChart({ forecast }: OverviewChartProps) {
   const [activeMetric, setActiveMetric] = useState<Metric>("Humidity");
   const cfg = METRIC_CONFIG[activeMetric];
 
@@ -81,7 +82,7 @@ export default function OverviewChart({ forecast }: OverviewChartProps) {
       }))
     : months.map((m, i) => ({
         name: m,
-        value: cfg.key({ humidity: Math.floor(Math.random() * 60 + 20) } as ForecastDay, i),
+        value: cfg.key({ humidity: FALLBACK_HUMIDITY[i] } as ForecastDay, i),
         date: "",
       }));
 
@@ -134,6 +135,7 @@ export default function OverviewChart({ forecast }: OverviewChartProps) {
             stroke={cfg.color}
             strokeWidth={2}
             fill={`url(#${cfg.gradientId})`}
+            isAnimationActive={false}
             dot={{ fill: cfg.color, r: 3, strokeWidth: 0 }}
             activeDot={{ r: 5, fill: "#4f8ef7" }}
           />
@@ -142,3 +144,5 @@ export default function OverviewChart({ forecast }: OverviewChartProps) {
     </div>
   );
 }
+
+export default OverviewChart;

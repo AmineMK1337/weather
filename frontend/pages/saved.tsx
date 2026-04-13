@@ -57,9 +57,9 @@ export default function SavedPage() {
           </div>
 
           {/* Saved City Cards */}
-          {SAVED_LOCATIONS.map((city, i) => (
+          {SAVED_LOCATIONS.map((city) => (
             <div
-              key={i}
+              key={`${city.name}-${city.country}`}
               className="card p-6 min-h-[220px] rounded-[24px] flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-bg-card to-[#1a1e2a] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all cursor-pointer group"
             >
               {/* Background gradient hint based on temperature (hot/cold) */}

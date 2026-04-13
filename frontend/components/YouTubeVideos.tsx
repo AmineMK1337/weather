@@ -22,27 +22,44 @@ export default function YouTubeVideos({ location }: YouTubeVideosProps) {
     const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
     if (!apiKey) return;
 
+    const abortController = new AbortController();
     setLoading(true);
+    
     fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(location + " travel")}` +
-      `&type=video&maxResults=3&key=${apiKey}`
+      `&type=video&maxResults=3&key=${apiKey}`,
+      { signal: abortController.signal }
     )
       .then((r) => r.json())
       .then((data) => {
-        setVideos(
-          (data.items || []).map((item: any) => ({
-            id: item.id.videoId,
-            title: item.snippet.title,
-            thumbnail: item.snippet.thumbnails.medium.url,
-            channelTitle: item.snippet.channelTitle,
-          }))
-        );
+        if (!abortController.signal.aborted) {
+          setVideos(
+            (data.items || []).map((item: any) => ({
+              id: item.id.videoId,
+              title: item.snippet.title,
+              thumbnail: item.snippet.thumbnails.medium.url,
+              channelTitle: item.snippet.channelTitle,
+            }))
+          );
+        }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          // Silent fail for API errors
+        }
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
+      });
+
+    return () => abortController.abort();
   }, [location]);
 
-  if (!location || (!loading && videos.length === 0)) return null;
+  if (!location || (!loading && videos.length === 0)) {
+    return <div className="card p-5 invisible" aria-hidden="true" />;
+  }
 
   return (
     <div className="card p-5">

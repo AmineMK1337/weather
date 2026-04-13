@@ -1,18 +1,21 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useState, useCallback } from "react";
 import { weatherApi, CurrentWeather, ForecastDay } from "../services/api";
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
-import CurrentWeatherCard from "../components/CurrentWeatherCard";
-import HourlyForecast from "../components/HourlyForecast";
-import OverviewChart from "../components/OverviewChart";
-import ForecastPanel from "../components/ForecastPanel";
-import MapPanel from "../components/MapPanel";
-import WorldForecast from "../components/WorldForecast";
-import YouTubeVideos from "../components/YouTubeVideos";
-import RecordsModal from "../components/RecordsModal";
-import SidebarLayout from "../components/SidebarLayout";
 import { Database, ArrowUpRight } from "lucide-react";
+
+// Lazy load all components to avoid SSR issues
+const Sidebar = dynamic(() => import("../components/Sidebar"), { ssr: false });
+const Header = dynamic(() => import("../components/Header"), { ssr: false });
+const CurrentWeatherCard = dynamic(() => import("../components/CurrentWeatherCard"), { ssr: false });
+const HourlyForecast = dynamic(() => import("../components/HourlyForecast"), { ssr: false });
+const OverviewChart = dynamic(() => import("../components/OverviewChart"), { ssr: false });
+const ForecastPanel = dynamic(() => import("../components/ForecastPanel"), { ssr: false });
+const MapPanel = dynamic(() => import("../components/MapPanel"), { ssr: false });
+const WorldForecast = dynamic(() => import("../components/WorldForecast"), { ssr: false });
+const YouTubeVideos = dynamic(() => import("../components/YouTubeVideos"), { ssr: false });
+const RecordsModal = dynamic(() => import("../components/RecordsModal"), { ssr: false });
+const SidebarLayout = dynamic(() => import("../components/SidebarLayout"), { ssr: false });
 
 export default function Dashboard() {
   const [weather, setWeather] = useState<CurrentWeather | null>(null);
@@ -67,19 +70,19 @@ export default function Dashboard() {
         loading={loading}
       />
 
-        {/* Error banner */}
-        {error && (
-          <div className="mx-6 mt-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-sans">
-            ⚠️ {error}
-          </div>
-        )}
+      {/* Error banner */}
+      <div className={`mx-6 mt-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-sans transition-all ${
+        error ? "opacity-100 pointer-events-auto h-auto" : "opacity-0 pointer-events-none h-0 overflow-hidden"
+      }`}>
+        ⚠️ {error || "No error"}
+      </div>
 
         {/* Main grid */}
         <main className="flex-1 overflow-y-auto p-5 gap-4 grid grid-cols-[1fr_300px]">
 
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-4 min-h-0">
-            <CurrentWeatherCard weather={weather} unit={unit} loading={loading} />
+            <CurrentWeatherCard key={searchedLocation} weather={weather} unit={unit} loading={loading} />
             <HourlyForecast forecast={forecast} unit={unit} />
             <OverviewChart forecast={forecast} />
 
@@ -92,7 +95,7 @@ export default function Dashboard() {
 
           {/* RIGHT COLUMN */}
           <div className="flex flex-col gap-4">
-            <MapPanel weather={weather} />
+            <MapPanel key={searchedLocation || "map-initial"} weather={weather} />
             <ForecastPanel forecast={forecast} unit={unit} loading={loading} />
             <YouTubeVideos location={searchedLocation} />
 

@@ -1,17 +1,51 @@
 import os
 import httpx
-from typing import Optional
+import re
+from typing import Optional, Dict, Any
 from google import genai
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
 
+def parse_location(location: str) -> Dict[str, Any]:
+    """Parse location string and return appropriate API parameters.
+    
+    Supports:
+    - City name: "New York" or "Berlin, Germany"
+    - Coordinates: "36.88987,10.16907" (lat,lon)
+    
+    Returns dict with 'param_type' and the actual parameters.
+    """
+    # Check if it looks like coordinates (number,number)
+    coord_pattern = r'^[-+]?\d+\.?\d*\s*,\s*[-+]?\d+\.?\d*$'
+    if re.match(coord_pattern, location.strip()):
+        try:
+            parts = location.split(',')
+            lat = float(parts[0].strip())
+            lon = float(parts[1].strip())
+            return {
+                "param_type": "coords",
+                "params": {"lat": lat, "lon": lon}
+            }
+        except (ValueError, IndexError):
+            pass
+    
+    # Otherwise treat as city name/query
+    return {
+        "param_type": "city",
+        "params": {"q": location}
+    }
+
+
 async def get_current_weather(location: str, units: str = "metric") -> dict:
+    location_info = parse_location(location)
+    params = {**location_info["params"], "appid": OPENWEATHER_API_KEY, "units": units}
+    
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/weather",
-            params={"q": location, "appid": OPENWEATHER_API_KEY, "units": units},
+            params=params,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -36,10 +70,13 @@ async def get_current_weather(location: str, units: str = "metric") -> dict:
 
 
 async def get_forecast(location: str, days: int = 5, units: str = "metric") -> dict:
+    location_info = parse_location(location)
+    params = {**location_info["params"], "appid": OPENWEATHER_API_KEY, "units": units, "cnt": days * 8}
+    
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/forecast",
-            params={"q": location, "appid": OPENWEATHER_API_KEY, "units": units, "cnt": days * 8},
+            params=params,
         )
         resp.raise_for_status()
         data = resp.json()

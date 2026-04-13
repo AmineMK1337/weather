@@ -11,6 +11,7 @@ import MapPanel from "../components/MapPanel";
 import WorldForecast from "../components/WorldForecast";
 import YouTubeVideos from "../components/YouTubeVideos";
 import RecordsModal from "../components/RecordsModal";
+import SidebarLayout from "../components/SidebarLayout";
 import { Database, ArrowUpRight } from "lucide-react";
 
 export default function Dashboard() {
@@ -58,16 +59,13 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-bg-primary overflow-hidden">
-      <Sidebar />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          onSearch={handleSearch}
-          unit={unit}
-          onUnitToggle={() => setUnit(u => u === "C" ? "F" : "C")}
-          loading={loading}
-        />
+    <SidebarLayout>
+      <Header
+        onSearch={handleSearch}
+        unit={unit}
+        onUnitToggle={() => setUnit(u => u === "C" ? "F" : "C")}
+        loading={loading}
+      />
 
         {/* Error banner */}
         {error && (
@@ -130,9 +128,7 @@ export default function Dashboard() {
             </button>
           </div>
         </main>
-      </div>
-
       <RecordsModal isOpen={showRecords} onClose={() => setShowRecords(false)} />
-    </div>
+    </SidebarLayout>
   );
 }

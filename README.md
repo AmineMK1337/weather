@@ -4,6 +4,16 @@ A production-ready, full-stack weather dashboard inspired by a sleek dark-themed
 
 ---
 
+## 🤝 PM Accelerator
+
+<img src="assets/pm-accelerator-logo.jpg" alt="PM Accelerator logo" width="360" />
+
+PM Accelerator supports product management professionals at every stage of their careers, from aspiring PMs to experienced leaders.
+
+- LinkedIn: https://www.linkedin.com/school/pmaccelerator/
+
+---
+
 ## ✨ Features
 
 ### 🌐 Frontend (Next.js + TypeScript + Tailwind CSS)

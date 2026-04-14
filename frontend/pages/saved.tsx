@@ -1,12 +1,24 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import Head from "next/head";
 import { Star, Plus, MoreHorizontal } from "lucide-react";
 import { getWeatherIcon, formatTemp } from "../services/weatherUtils";
+import { weatherApi } from "../services/api";
 
-// Mock saved locations
-const SAVED_LOCATIONS = [
+const STORAGE_KEY = "weather.saved.locations";
+
+interface SavedLocation {
+  name: string;
+  country: string;
+  temp: number;
+  condition: string;
+  icon: string;
+  wind: string;
+  humidity: string;
+}
+
+const DEFAULT_SAVED_LOCATIONS: SavedLocation[] = [
   { name: "Florida", country: "US", temp: 25, condition: "Heavy Rain", icon: "10d", wind: "7.9 km/h", humidity: "85%" },
   { name: "Canberra", country: "Australia", temp: 26, condition: "Clear", icon: "01d", wind: "10.2 km/h", humidity: "40%" },
   { name: "Tokyo", country: "Japan", temp: 30, condition: "Mostly Sunny", icon: "02d", wind: "5.5 km/h", humidity: "60%" },
@@ -16,6 +28,83 @@ const SAVED_LOCATIONS = [
 
 export default function SavedPage() {
   const [unit, setUnit] = useState<"C" | "F">("C");
+  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>(DEFAULT_SAVED_LOCATIONS);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [locationQuery, setLocationQuery] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as SavedLocation[];
+      if (Array.isArray(parsed) && parsed.length) {
+        const sanitized = parsed.filter(
+          (city) =>
+            typeof city?.name === "string" &&
+            typeof city?.country === "string" &&
+            typeof city?.temp === "number" &&
+            typeof city?.condition === "string" &&
+            typeof city?.icon === "string" &&
+            typeof city?.wind === "string" &&
+            typeof city?.humidity === "string"
+        );
+
+        if (sanitized.length) {
+          setSavedLocations(sanitized);
+        }
+      }
+    } catch {
+      // Ignore malformed local data.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLocations));
+  }, [savedLocations]);
+
+  const handleAddLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = locationQuery.trim();
+    if (!query) return;
+
+    setIsAdding(true);
+    setAddError(null);
+
+    try {
+      const { data } = await weatherApi.getCurrent(query);
+      const newLocation: SavedLocation = {
+        name: data.location,
+        country: data.country,
+        temp: data.temperature,
+        condition: data.weather_condition,
+        icon: data.weather_icon,
+        wind: `${(data.wind_speed * 3.6).toFixed(1)} km/h`,
+        humidity: `${Math.round(data.humidity)}%`,
+      };
+
+      const normalizedName = newLocation.name.toLowerCase();
+      if (savedLocations.some((city) => city.name.toLowerCase() === normalizedName)) {
+        setAddError("This location is already saved.");
+        return;
+      }
+
+      setSavedLocations((prev) => [
+        newLocation,
+        ...prev.filter((city) => city.name.toLowerCase() !== normalizedName),
+      ].slice(0, 18));
+      setLocationQuery("");
+      setShowAddForm(false);
+    } catch {
+      setAddError("Could not find that location. Try a city name.");
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   return (
     <SidebarLayout>
@@ -46,18 +135,60 @@ export default function SavedPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Add New Card */}
-          <div className="card p-8 min-h-[220px] rounded-[24px] border border-dashed border-white/10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-accent-blue/30 hover:bg-accent-blue/5 transition-all group">
-            <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <Plus size={24} className="text-text-muted group-hover:text-accent-blue transition-colors" />
-            </div>
-            <div className="text-center">
-              <h3 className="font-display text-xl text-text-primary mb-1">Add Location</h3>
+          {showAddForm ? (
+            <form
+              onSubmit={handleAddLocation}
+              className="card p-6 min-h-[220px] rounded-[24px] border border-dashed border-accent-blue/40 flex flex-col justify-center gap-3"
+            >
+              <h3 className="font-display text-xl text-text-primary">Add Location</h3>
               <p className="text-sm text-text-muted">Search and save a new city</p>
-            </div>
-          </div>
+              <input
+                type="text"
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+                placeholder="Enter city name..."
+                className="w-full px-4 py-2.5 rounded-xl bg-bg-secondary border border-white/10 text-text-primary text-sm focus:outline-none focus:border-accent-blue/50"
+              />
+              {addError && <p className="text-xs text-red-400">{addError}</p>}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={isAdding}
+                  className="px-4 py-2 rounded-lg bg-accent-blue text-white text-sm font-medium disabled:opacity-60"
+                >
+                  {isAdding ? "Adding..." : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setLocationQuery("");
+                    setAddError(null);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-text-muted"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="card p-8 min-h-[220px] rounded-[24px] border border-dashed border-white/10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-accent-blue/30 hover:bg-accent-blue/5 transition-all group text-left"
+            >
+              <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Plus size={24} className="text-text-muted group-hover:text-accent-blue transition-colors" />
+              </div>
+              <div className="text-center">
+                <h3 className="font-display text-xl text-text-primary mb-1">Add Location</h3>
+                <p className="text-sm text-text-muted">Search and save a new city</p>
+              </div>
+            </button>
+          )}
 
           {/* Saved City Cards */}
-          {SAVED_LOCATIONS.map((city) => (
+          {savedLocations.map((city) => (
             <div
               key={`${city.name}-${city.country}`}
               className="card p-6 min-h-[220px] rounded-[24px] flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-bg-card to-[#1a1e2a] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all cursor-pointer group"

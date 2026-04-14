@@ -18,7 +18,7 @@ function ForecastPanel({ forecast, unit, loading }: ForecastPanelProps) {
   const items = forecast ? forecast.slice(0, days) : [];
 
   return (
-    <div className="card p-5">
+    <div className="card p-5 min-h-[260px]">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-2xl text-text-primary">Forecasts</h2>
         <div className="flex gap-1 bg-bg-hover rounded-xl p-1">

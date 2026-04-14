@@ -78,13 +78,15 @@ export default function Dashboard() {
       </div>
 
         {/* Main grid */}
-        <main className="flex-1 overflow-y-auto p-5 gap-4 grid grid-cols-[1fr_300px]">
+        <main className="flex-1 overflow-y-auto p-5 gap-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
 
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-4 min-h-0">
             <CurrentWeatherCard key={searchedLocation} weather={weather} unit={unit} loading={loading} />
             <HourlyForecast forecast={forecast} unit={unit} />
-            <OverviewChart forecast={forecast} />
+            <div className="w-full">
+              <OverviewChart forecast={forecast} />
+            </div>
 
             {/* World forecast strip */}
             <div>
@@ -95,7 +97,7 @@ export default function Dashboard() {
 
           {/* RIGHT COLUMN */}
           <div className="flex flex-col gap-4">
-            <MapPanel key={searchedLocation || "map-initial"} weather={weather} />
+            <MapPanel key={searchedLocation || "map-initial"} weather={weather} mapHeight={270} />
             <ForecastPanel forecast={forecast} unit={unit} loading={loading} />
             <YouTubeVideos location={searchedLocation} />
 

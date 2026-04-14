@@ -1,10 +1,106 @@
 "use client";
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import Head from "next/head";
 import { User, Mail, Shield, Camera, Award, Clock } from "lucide-react";
 
+const STORAGE_KEY = "weather.profile.info";
+
+interface ProfileInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  title: string;
+}
+
+const DEFAULT_PROFILE: ProfileInfo = {
+  firstName: "Sazid",
+  lastName: "M.",
+  email: "sazid@example.com",
+  title: "Weather Enthusiast",
+};
+
 export default function ProfilePage() {
+  const [profile, setProfile] = useState<ProfileInfo>(DEFAULT_PROFILE);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as Partial<ProfileInfo>;
+      setProfile({
+        firstName: typeof parsed.firstName === "string" ? parsed.firstName : DEFAULT_PROFILE.firstName,
+        lastName: typeof parsed.lastName === "string" ? parsed.lastName : DEFAULT_PROFILE.lastName,
+        email: typeof parsed.email === "string" ? parsed.email : DEFAULT_PROFILE.email,
+        title: typeof parsed.title === "string" ? parsed.title : DEFAULT_PROFILE.title,
+      });
+    } catch {
+      // Ignore malformed profile storage data.
+    }
+  }, []);
+
+  const displayName = useMemo(() => {
+    const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+    return fullName || "Anonymous";
+  }, [profile.firstName, profile.lastName]);
+
+  const avatarUrl = useMemo(
+    () => `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=4f8ef7`,
+    [displayName]
+  );
+
+  const handleChange = (field: keyof ProfileInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProfile((prev) => ({ ...prev, [field]: e.target.value }));
+    if (saveStatus !== "idle") {
+      setSaveStatus("idle");
+      setMessage("");
+    }
+  };
+
+  const handleSave = () => {
+    const trimmed = {
+      firstName: profile.firstName.trim(),
+      lastName: profile.lastName.trim(),
+      email: profile.email.trim(),
+      title: profile.title.trim(),
+    };
+
+    if (!trimmed.firstName || !trimmed.lastName || !trimmed.email) {
+      setSaveStatus("error");
+      setMessage("First name, last name and email are required.");
+      return;
+    }
+
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed.email);
+    if (!isValidEmail) {
+      setSaveStatus("error");
+      setMessage("Please enter a valid email address.");
+      return;
+    }
+
+    const nextProfile = {
+      ...trimmed,
+      title: trimmed.title || DEFAULT_PROFILE.title,
+    };
+
+    setProfile(nextProfile);
+
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProfile));
+      }
+      setSaveStatus("saved");
+      setMessage("Profile updated successfully.");
+    } catch {
+      setSaveStatus("error");
+      setMessage("Could not save profile right now. Please try again.");
+    }
+  };
+
   return (
     <SidebarLayout>
       <Head>
@@ -21,9 +117,19 @@ export default function ProfilePage() {
               Manage your personal information and account security.
             </p>
           </div>
-          <button className="px-5 py-2.5 rounded-xl bg-accent-blue text-white font-medium hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/20 text-sm">
-            Save Changes
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={handleSave}
+              className="px-5 py-2.5 rounded-xl bg-accent-blue text-white font-medium hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/20 text-sm"
+            >
+              Save Changes
+            </button>
+            {message && (
+              <p className={`text-xs ${saveStatus === "saved" ? "text-emerald-400" : "text-red-400"}`}>
+                {message}
+              </p>
+            )}
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -33,14 +139,14 @@ export default function ProfilePage() {
             <div className="card p-8 rounded-[24px] flex flex-col items-center text-center">
               <div className="relative group cursor-pointer mb-5">
                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-bg-secondary bg-slate-800">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sazid&backgroundColor=4f8ef7" alt="Profile" className="w-full h-full object-cover" />
+                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                 </div>
                 <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <Camera className="text-white" size={24} />
                 </div>
               </div>
-              <h2 className="text-xl font-display text-text-primary">Sazid M.</h2>
-              <p className="text-sm text-text-muted mt-1">Weather Enthusiast</p>
+              <h2 className="text-xl font-display text-text-primary">{displayName}</h2>
+              <p className="text-sm text-text-muted mt-1">{profile.title || DEFAULT_PROFILE.title}</p>
               
               <div className="w-full h-px bg-white/10 my-6" />
               
@@ -74,17 +180,41 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-text-secondary mb-2">First Name</label>
-                  <input type="text" defaultValue="Sazid" className="w-full px-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors" />
+                  <input
+                    type="text"
+                    value={profile.firstName}
+                    onChange={handleChange("firstName")}
+                    className="w-full px-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-secondary mb-2">Last Name</label>
-                  <input type="text" defaultValue="M." className="w-full px-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors" />
+                  <input
+                    type="text"
+                    value={profile.lastName}
+                    onChange={handleChange("lastName")}
+                    className="w-full px-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">Profile Title</label>
+                  <input
+                    type="text"
+                    value={profile.title}
+                    onChange={handleChange("title")}
+                    className="w-full px-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors"
+                  />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-text-secondary mb-2">Email Address</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
-                    <input type="email" defaultValue="sazid@example.com" className="w-full pl-11 pr-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors" />
+                    <input
+                      type="email"
+                      value={profile.email}
+                      onChange={handleChange("email")}
+                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-bg-secondary border border-white/5 text-text-primary focus:outline-none focus:border-accent-blue/50 transition-colors"
+                    />
                   </div>
                 </div>
               </div>

@@ -3,15 +3,18 @@ from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.weather import WeatherRecord
+from pathlib import Path
 import csv
 import io
 import json
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
 router = APIRouter()
+PM_ACCELERATOR_LINK = "https://www.linkedin.com/school/pmaccelerator/"
+PM_ACCELERATOR_LOGO = Path(__file__).resolve().parents[1] / "assets" / "pm-accelerator-logo.jpg"
 
 
 def get_all_records(db: Session):
@@ -60,7 +63,26 @@ def export_pdf(db: Session = Depends(get_db)):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
-    elements = [Paragraph("Weather Records Export", styles["Title"])]
+    elements = [Paragraph("Weather Records Export", styles["Title"]), Spacer(1, 10)]
+
+    if PM_ACCELERATOR_LOGO.exists():
+        elements.append(Image(str(PM_ACCELERATOR_LOGO), width=180, height=90))
+        elements.append(Spacer(1, 6))
+
+    elements.append(
+        Paragraph(
+            "PM Accelerator supports PM professionals from aspiring talent to product leaders.",
+            styles["BodyText"],
+        )
+    )
+    elements.append(
+        Paragraph(
+            f'LinkedIn: <a href="{PM_ACCELERATOR_LINK}" color="blue">{PM_ACCELERATOR_LINK}</a>',
+            styles["BodyText"],
+        )
+    )
+    elements.append(Spacer(1, 12))
+
     table_data = [["ID", "Location", "Country", "Temp", "Humidity", "Wind", "Condition"]]
     for r in records:
         table_data.append([str(r.id), r.location or "", r.country or "", f"{r.temperature}°C", f"{r.humidity}%", f"{r.wind_speed} m/s", r.weather_condition or ""])
